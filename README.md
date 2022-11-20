@@ -1,7 +1,7 @@
 Full-featured ImageMagick on Ubuntu
 ==========
 
-This project aims to provide Dockerfile(s) to compile full-featured ImageMagick executable files with **dynamic-linking** on Ubuntu-based Linux distributions.
+This project aims to provide Dockerfile(s) to compile full-featured ImageMagick's executable file with **dynamic-linking** on Ubuntu-based Linux distributions.
 
 #### Why not static?
 
