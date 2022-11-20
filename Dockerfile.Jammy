@@ -1,0 +1,193 @@
+ARG imagemagick_ver=7.1.0-52
+ARG autotrace_ver=20200219.65
+
+FROM ubuntu:22.04 AS builder
+
+RUN apt update -y
+
+RUN apt install -y wget curl build-essential automake autopoint libtool intltool pkg-config cmake
+
+RUN mkdir imagemagick_build
+
+WORKDIR /workspace
+
+# -----MALLOC-----
+
+# libjemalloc-dev for --with-jemalloc=yes
+RUN apt install -y \
+libjemalloc-dev
+
+# -----LIBRARY-----
+
+# libbz2-dev for NOT --with-bzlib=no
+# libdjvulibre-dev for NOT --with-djvu=no
+# libdps-dev for NOT --with-dps=no (not exist)
+# libfftw3-dev for --with-fftw=yes
+# libflif-dev for --with-flif=yes (not exist)
+# libfpx-dev for NOT --with-fpx=no (not exist)
+# libfontconfig1-dev for NOT --with-fontconfig=no
+# libfreetype-dev for NOT --with-freetype=no
+# libgs-dev for --with-gslib=yes
+# libgraphviz-dev for NOT --with-gvc=no
+# libheif-dev for NOT --with-heic=no
+# libjbig-dev for NOT --with-jbig=no
+# libjpeg-dev for NOT --with-jpeg=no
+# libjsx-dev for --with-jsx=yes (not exist)
+# liblcms2-dev for NOT --with-lcms=no
+# liblqr-1-0-dev for NOT --with-lqr=no
+# libltdl-dev is not necessary because --with-modules=no
+# liblzma-dev for NOT --with-lzma=no
+# libopenexr-dev for NOT --with-openexr=no
+# libopenjp2-7-dev for NOT --with-openjp2=no
+# libpango1.0-dev for NOT --with-pango=no
+# libperl-dev for --with-perl=yes (cause issues)
+# libpng-dev for NOT --with-png=no
+# libraqm-dev for NOT --with-raqm=no
+# libraw-dev for NOT --with-raw=no
+# librsvg2-dev for --with-rsvg=yes
+# libtiff-dev for NOT --with-tiff=no
+# libwebp-dev for NOT --with-webp=no
+# libwmf-dev for --with-wmf=yes
+# libxml2-dev for NOT --with-xml=no
+# libzip-dev for NOT --with-zip=no
+# zlib1g-dev for NOT --with-zlib=no
+# libzstd-dev for NOT --with-zstd=no
+RUN apt install -y \
+libbz2-dev \
+libdjvulibre-dev \
+libfftw3-dev \
+libfontconfig1-dev \
+libfreetype-dev \
+libgs-dev \
+libgraphviz-dev \
+libheif-dev \
+libjbig-dev \
+libjpeg-dev \
+liblcms2-dev \
+liblqr-1-0-dev \
+liblzma-dev \
+libopenexr-dev \
+libopenjp2-7-dev \
+libpango1.0-dev \
+libpng-dev \
+libraqm-dev \
+libraw-dev \
+librsvg2-dev \
+libtiff-dev \
+libwebp-dev \
+libwmf-dev \
+libxml2-dev \
+libzip-dev \
+zlib1g-dev \
+libzstd-dev
+
+# -----PROGRAM-----
+
+RUN apt install -y \
+ghostscript
+
+# -----AUTOTRACE-----
+
+# fetch & compile & install autotrace for --with-autotrace=yes
+RUN apt install -y \
+libglib2.0-dev \
+libpstoedit-dev
+ARG autotrace_ver
+RUN cd /imagemagick_build && \
+wget -O autotrace.tar.gz https://github.com/autotrace/autotrace/archive/refs/tags/travis-${autotrace_ver}.tar.gz && tar xzf autotrace.tar.gz && \
+cd autotrace-travis-${autotrace_ver} && \
+./autogen.sh && \
+./configure --prefix="/imagemagick_build" --disable-shared --with-pic --without-magick && \
+make -j$(nproc) && make install
+
+# -----ImageMagick-----
+
+ARG imagemagick_ver
+RUN wget -O imagemagick.tar.gz https://github.com/ImageMagick/ImageMagick/archive/refs/tags/${imagemagick_ver}.tar.gz && tar xzf imagemagick.tar.gz
+
+WORKDIR /workspace/ImageMagick-${imagemagick_ver}
+
+RUN PKG_CONFIG_PATH="/imagemagick_build/lib/pkgconfig" ./configure \
+--prefix="/imagemagick_build" \
+--disable-shared \
+--enable-zero-configuration \
+--enable-hdri \
+--with-jemalloc \
+--with-fftw \
+--with-gslib \
+--with-rsvg \
+--with-wmf \
+--with-autotrace
+
+RUN make -j$(nproc)
+
+RUN make install
+
+RUN /imagemagick_build/bin/magick --help
+
+# ----- Runtime Environment -----
+
+FROM ubuntu:22.04
+
+RUN apt update -y
+
+# If you want to run ImageMagick's executable file on other Ubuntu-22.04-based systems, use the following command to install the required packages.
+RUN apt install -y \
+ghostscript \
+libjbig0 \
+libtiff5 \
+libraqm0 \
+libjpeg8 \
+libgs9 \
+liblqr-1-0 \
+libpng16-16 \
+libpstoedit0c2a \
+libdjvulibre21 \
+libfftw3-3 \
+libfontconfig1 \
+libfreetype6 \
+libheif1 \
+libwebpmux3 \
+libwebp7 \
+libwmflite-0.2-7 \
+libxext6 \
+liblzma5 \
+libbz2-1.0 \
+libopenexr25 \
+libopenjp2-7 \
+libpangocairo-1.0-0 \
+libpango-1.0-0 \
+libraw20 \
+liblcms2-2 \
+librsvg2-2 \
+libglib2.0-0 \
+libcairo2 \
+libxml2 \
+libgvc6 \
+libcgraph6 \
+libzip4 \
+libjemalloc2 \
+libgomp1
+
+RUN adduser --disabled-password \
+    --gecos "" \
+    --no-create-home \
+    user
+
+WORKDIR /workspace
+
+COPY --from=builder /imagemagick_build/bin/magick /imagemagick_build/bin/autotrace ./
+
+RUN chown user:user /workspace
+	 
+USER user
+
+RUN ldd magick
+
+RUN ./magick --help
+
+RUN ldd autotrace
+
+RUN ./autotrace --help
+
+CMD cp * /output
