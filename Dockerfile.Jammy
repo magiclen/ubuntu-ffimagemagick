@@ -32,7 +32,7 @@ libjemalloc-dev
 # libheif-dev for NOT --with-heic=no
 # libjbig-dev for NOT --with-jbig=no
 # libjpeg-dev for NOT --with-jpeg=no
-# libjsx-dev for --with-jsx=yes (not exist)
+# libjxl-dev for --with-jxl=yes (not exist)
 # liblcms2-dev for NOT --with-lcms=no
 # liblqr-1-0-dev for NOT --with-lqr=no
 # libltdl-dev is not necessary because --with-modules=no
