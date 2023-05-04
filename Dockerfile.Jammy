@@ -1,4 +1,4 @@
-ARG imagemagick_ver=7.1.1-6
+ARG imagemagick_ver=7.1.1-8
 ARG autotrace_ver=20200219.65
 
 FROM ubuntu:22.04 AS builder
