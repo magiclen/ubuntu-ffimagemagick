@@ -1,11 +1,11 @@
-ARG imagemagick_ver=7.1.1-15
+ARG imagemagick_ver=7.1.1-21
 ARG autotrace_ver=20200219.65
 
 FROM ubuntu:22.04 AS builder
 
 RUN apt update -y
 
-RUN apt install -y wget curl build-essential automake autopoint libtool intltool pkg-config cmake
+RUN apt install -y curl build-essential automake autopoint libtool intltool pkg-config cmake
 
 RUN mkdir imagemagick_build
 
@@ -94,7 +94,7 @@ libglib2.0-dev \
 libpstoedit-dev
 ARG autotrace_ver
 RUN cd /imagemagick_build && \
-wget -O autotrace.tar.gz https://github.com/autotrace/autotrace/archive/refs/tags/travis-${autotrace_ver}.tar.gz && tar xzf autotrace.tar.gz && \
+curl -fL https://github.com/autotrace/autotrace/archive/refs/tags/travis-${autotrace_ver}.tar.gz -o autotrace.tar.gz && tar xzf autotrace.tar.gz && \
 cd autotrace-travis-${autotrace_ver} && \
 ./autogen.sh && \
 ./configure --prefix="/imagemagick_build" --disable-shared --with-pic --without-magick && \
@@ -103,7 +103,7 @@ make -j$(nproc) && make install
 # -----ImageMagick-----
 
 ARG imagemagick_ver
-RUN wget -O imagemagick.tar.gz https://github.com/ImageMagick/ImageMagick/archive/refs/tags/${imagemagick_ver}.tar.gz && tar xzf imagemagick.tar.gz
+RUN curl -fL https://github.com/ImageMagick/ImageMagick/archive/refs/tags/${imagemagick_ver}.tar.gz -o imagemagick.tar.gz && tar xzf imagemagick.tar.gz
 
 WORKDIR /workspace/ImageMagick-${imagemagick_ver}
 
