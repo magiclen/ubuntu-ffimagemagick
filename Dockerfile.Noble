@@ -1,7 +1,7 @@
 ARG imagemagick_ver=7.1.1-36
-ARG autotrace_ver=20200219.65
+# ARG autotrace_ver=20200219.65
 
-FROM ubuntu:22.04 AS builder
+FROM ubuntu:24.04 AS builder
 
 RUN apt update -y
 
@@ -89,16 +89,16 @@ ghostscript
 # -----AUTOTRACE-----
 
 # fetch & compile & install autotrace for --with-autotrace=yes
-RUN apt install -y \
-libglib2.0-dev \
-libpstoedit-dev
-ARG autotrace_ver
-RUN cd /imagemagick_build && \
-curl -fL https://github.com/autotrace/autotrace/archive/refs/tags/travis-${autotrace_ver}.tar.gz -o autotrace.tar.gz && tar xzf autotrace.tar.gz && \
-cd autotrace-travis-${autotrace_ver} && \
-./autogen.sh && \
-./configure --prefix="/imagemagick_build" --disable-shared --with-pic --without-magick && \
-make -j$(nproc) && make install
+# RUN apt install -y \
+# libglib2.0-dev \
+# libpstoedit-dev
+# ARG autotrace_ver
+# RUN cd /imagemagick_build && \
+# curl -fL https://github.com/autotrace/autotrace/archive/refs/tags/travis-${autotrace_ver}.tar.gz -o autotrace.tar.gz && tar xzf autotrace.tar.gz && \
+# cd autotrace-travis-${autotrace_ver} && \
+# ./autogen.sh && \
+# ./configure --prefix="/imagemagick_build" --disable-shared --with-pic --without-magick && \
+# make -j$(nproc) && make install
 
 # -----ImageMagick-----
 
@@ -116,8 +116,8 @@ RUN PKG_CONFIG_PATH="/imagemagick_build/lib/pkgconfig" ./configure \
 --with-fftw \
 --with-gslib \
 --with-rsvg \
---with-wmf \
---with-autotrace
+--with-wmf
+# --with-autotrace
 
 RUN make -j$(nproc)
 
@@ -127,45 +127,46 @@ RUN /imagemagick_build/bin/magick --help
 
 # ----- Runtime Environment -----
 
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 RUN apt update -y
 
-# If you want to run ImageMagick's executable file on other Ubuntu-22.04-based systems, use the following command to install the required packages.
+# If you want to run ImageMagick's executable file on other Ubuntu-24.04-based systems, use the following command to install the required packages.
 RUN apt install -y \
 ghostscript \
 libjbig0 \
-libtiff5 \
+libtiff6 \
 libraqm0 \
 libjpeg8 \
-libgs9 \
+libgs10 \
 liblqr-1-0 \
-libpng16-16 \
-libpstoedit0c2a \
+libpng16-16t64 \
+libpstoedit0t64 \
 libdjvulibre21 \
-libfftw3-3 \
+libfftw3-bin \
 libfontconfig1 \
 libfreetype6 \
 libheif1 \
 libwebpmux3 \
+libwebpdemux2 \
 libwebp7 \
 libwmflite-0.2-7 \
 libxext6 \
 liblzma5 \
 libbz2-1.0 \
-libopenexr25 \
+libopenexr-3-1-30 \
 libopenjp2-7 \
 libpangocairo-1.0-0 \
 libpango-1.0-0 \
-libraw20 \
+libraw23t64 \
 liblcms2-2 \
 librsvg2-2 \
-libglib2.0-0 \
+libglib2.0-0t64 \
 libcairo2 \
 libxml2 \
 libgvc6 \
 libcgraph6 \
-libzip4 \
+libzip4t64 \
 libjemalloc2 \
 libgomp1
 
@@ -176,7 +177,8 @@ RUN adduser --disabled-password \
 
 WORKDIR /workspace
 
-COPY --from=builder /imagemagick_build/bin/magick /imagemagick_build/bin/autotrace ./
+COPY --from=builder /imagemagick_build/bin/magick ./
+# COPY --from=builder /imagemagick_build/bin/autotrace ./
 
 RUN chown user:user /workspace
 	 
@@ -186,8 +188,8 @@ RUN ldd magick
 
 RUN ./magick --help
 
-RUN ldd autotrace
+# RUN ldd autotrace
 
-RUN ./autotrace --help
+# RUN ./autotrace --help
 
 CMD cp * /output
