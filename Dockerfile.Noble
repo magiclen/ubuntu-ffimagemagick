@@ -1,11 +1,13 @@
-ARG imagemagick_ver=7.1.1-38
-# ARG autotrace_ver=20200219.65
+ARG imagemagick_ver=7.1.2-7
+ARG libfpx_ver=9b547af9651c7147ecebbda567543cc802c8135c
+ARG libjxl_ver=0.11.1
+ARG libultrahdr_ver=1.4.0
 
 FROM ubuntu:24.04 AS builder
 
 RUN apt update -y
 
-RUN apt install -y curl build-essential automake autopoint libtool intltool pkg-config cmake
+RUN apt install -y curl build-essential automake libtool pkg-config cmake git
 
 RUN mkdir imagemagick_build
 
@@ -14,17 +16,13 @@ WORKDIR /workspace
 # -----MALLOC-----
 
 # libjemalloc-dev for --with-jemalloc=yes
-RUN apt install -y \
-libjemalloc-dev
+RUN apt install -y libjemalloc-dev
 
 # -----LIBRARY-----
 
 # libbz2-dev for NOT --with-bzlib=no
 # libdjvulibre-dev for NOT --with-djvu=no
-# libdps-dev for NOT --with-dps=no (not exist)
 # libfftw3-dev for --with-fftw=yes
-# libflif-dev for --with-flif=yes (not exist)
-# libfpx-dev for NOT --with-fpx=no (not exist)
 # libfontconfig1-dev for NOT --with-fontconfig=no
 # libfreetype-dev for NOT --with-freetype=no
 # libgs-dev for --with-gslib=yes
@@ -32,15 +30,14 @@ libjemalloc-dev
 # libheif-dev for NOT --with-heic=no
 # libjbig-dev for NOT --with-jbig=no
 # libjpeg-dev for NOT --with-jpeg=no
-# libjxl-dev for --with-jxl=yes (not exist)
+# libdmr-dev for NOT --with-dmr=no
 # liblcms2-dev for NOT --with-lcms=no
 # liblqr-1-0-dev for NOT --with-lqr=no
-# libltdl-dev is not necessary because --with-modules=no
 # liblzma-dev for NOT --with-lzma=no
 # libopenexr-dev for NOT --with-openexr=no
 # libopenjp2-7-dev for NOT --with-openjp2=no
 # libpango1.0-dev for NOT --with-pango=no
-# libperl-dev for --with-perl=yes (cause issues)
+# libperl-dev for --with-perl=yes
 # libpng-dev for NOT --with-png=no
 # libraqm-dev for NOT --with-raqm=no
 # libraw-dev for NOT --with-raw=no
@@ -63,12 +60,14 @@ libgraphviz-dev \
 libheif-dev \
 libjbig-dev \
 libjpeg-dev \
+libdmr-dev \
 liblcms2-dev \
 liblqr-1-0-dev \
 liblzma-dev \
 libopenexr-dev \
 libopenjp2-7-dev \
 libpango1.0-dev \
+# libperl-dev \        # it causes issues
 libpng-dev \
 libraqm-dev \
 libraw-dev \
@@ -86,19 +85,35 @@ libzstd-dev
 RUN apt install -y \
 ghostscript
 
-# -----AUTOTRACE-----
+# -----COMPILATION - LIBRARY-----
 
-# fetch & compile & install autotrace for --with-autotrace=yes
-# RUN apt install -y \
-# libglib2.0-dev \
-# libpstoedit-dev
-# ARG autotrace_ver
-# RUN cd /imagemagick_build && \
-# curl -fL https://github.com/autotrace/autotrace/archive/refs/tags/travis-${autotrace_ver}.tar.gz -o autotrace.tar.gz && tar xzf autotrace.tar.gz && \
-# cd autotrace-travis-${autotrace_ver} && \
-# ./autogen.sh && \
-# ./configure --prefix="/imagemagick_build" --disable-shared --with-pic --without-magick && \
-# make -j$(nproc) && make install
+# fetch & compile & install libfpx for --with-fpx=yes
+ARG libfpx_ver
+RUN cd /imagemagick_build && \
+curl -fL https://github.com/ImageMagick/libfpx/archive/${libfpx_ver}.tar.gz -o libfpx.tar.gz && tar xzf libfpx.tar.gz && \
+cd libfpx-${libfpx_ver} && \
+./configure --prefix="/imagemagick_build" --disable-shared && \
+make -j$(nproc) && make install
+
+# fetch & compile & install libjxl for NOT --with-jxl=no
+ARG libjxl_ver
+RUN cd /imagemagick_build && \
+git clone -b v${libjxl_ver} https://github.com/libjxl/libjxl.git libjxl-${libjxl_ver} && \
+mkdir -p libjxl-${libjxl_ver}/build && \
+cd libjxl-${libjxl_ver} && \
+./deps.sh && \
+cd build && \
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="/imagemagick_build" -DBUILD_SHARED_LIBS=off .. && \
+make -j$(nproc) && make install
+
+# fetch & compile & install libultrahdr for --with-uhdr=yes
+ARG libultrahdr_ver
+RUN cd /imagemagick_build && \
+curl -fL https://github.com/google/libultrahdr/archive/refs/tags/v${libultrahdr_ver}.tar.gz -o libultrahdr.tar.gz && tar xzf libultrahdr.tar.gz && \
+mkdir -p libultrahdr-${libultrahdr_ver}/build && \
+cd libultrahdr-${libultrahdr_ver}/build && \
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="/imagemagick_build" -DBUILD_SHARED_LIBS=off .. && \
+make -j$(nproc) && make install
 
 # -----ImageMagick-----
 
@@ -107,23 +122,32 @@ RUN curl -fL https://github.com/ImageMagick/ImageMagick/archive/refs/tags/${imag
 
 WORKDIR /workspace/ImageMagick-${imagemagick_ver}
 
-RUN PKG_CONFIG_PATH="/imagemagick_build/lib/pkgconfig" ./configure \
+RUN ls /imagemagick_build/lib
+
+RUN CPPFLAGS="-I/imagemagick_build/include" LDFLAGS="-L/imagemagick_build/lib" LIBS="-lbrotlicommon" PKG_CONFIG_PATH="/imagemagick_build/lib/pkgconfig" ./configure \
 --prefix="/imagemagick_build" \
 --disable-shared \
 --enable-zero-configuration \
---enable-hdri \
+--enable-hdri --with-quantum-depth=32 --enable-64bit-channel-masks \
 --with-jemalloc \
+# --with-autotrace \  # it causes issues
+# --with-dps \        # this is too old to be found
 --with-fftw \
+# --with-ffif \       # this is too old to be found
+--with-fpx \
 --with-gslib \
+# --with-perl \       # it causes issues
 --with-rsvg \
+--with-uhdr \
 --with-wmf
-# --with-autotrace
 
 RUN make -j$(nproc)
 
 RUN make install
 
 RUN /imagemagick_build/bin/magick --help
+
+
 
 # ----- Runtime Environment -----
 
@@ -134,51 +158,27 @@ RUN apt update -y
 # If you want to run ImageMagick's executable file on other Ubuntu-24.04-based systems, use the following command to install the required packages.
 RUN apt install -y \
 ghostscript \
-libjbig0 \
-libtiff6 \
-libraqm0 \
-libjpeg8 \
-libgs10 \
-liblqr-1-0 \
-libpng16-16t64 \
-libpstoedit0t64 \
+libjemalloc2 \
 libdjvulibre21 \
 libfftw3-bin \
-libfontconfig1 \
-libfreetype6 \
-libheif1 \
-libwebpmux3 \
-libwebpdemux2 \
-libwebp7 \
-libwmflite-0.2-7 \
-libxext6 \
-liblzma5 \
-libbz2-1.0 \
-libopenexr-3-1-30 \
-libopenjp2-7 \
-libpangocairo-1.0-0 \
-libpango-1.0-0 \
-libraw23t64 \
-liblcms2-2 \
-librsvg2-2 \
-libglib2.0-0t64 \
-libcairo2 \
-libxml2 \
 libgvc6 \
-libcgraph6 \
-libzip4t64 \
-libjemalloc2 \
-libgomp1
+libheif1 \
+liblcms2-2 \
+liblqr-1-0 \
+libopenexr-3-1-30 \
+libpango-1.0-0 \
+libraqm0 \
+libraw23t64 \
+librsvg2-2 \
+libwebp7 libwebpmux3 libwebpdemux2 \
+libwmflite-0.2-7 \
+libzip4t64
 
-RUN adduser --disabled-password \
-    --gecos "" \
-    --no-create-home \
-    user
+RUN useradd -M -U user && passwd -l user
 
 WORKDIR /workspace
 
 COPY --from=builder /imagemagick_build/bin/magick ./
-# COPY --from=builder /imagemagick_build/bin/autotrace ./
 
 RUN chown user:user /workspace
 	 
@@ -188,8 +188,4 @@ RUN ldd magick
 
 RUN ./magick --help
 
-# RUN ldd autotrace
-
-# RUN ./autotrace --help
-
-CMD cp * /output
+CMD ["cp", "magick", "/output"]

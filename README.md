@@ -14,17 +14,18 @@ However, this project still uses some static libraries which are useful but not 
 #### Install Docker
 
 ```bash
-sudo apt install docker docker-buildx
+sudo apt install docker.io docker-buildx
 ```
 
 #### Compile
 
 ```bash
 docker build -t imagemagick-build -f Dockerfile.<ubuntu_name> .
+chmod 777 output
 docker run -v "$(pwd)/output":/output --name imagemagick-build imagemagick-build
 ```
 
-`<ubuntu_name>` can be `Jammy` (22.04), `Noble` (24.04).
+`<ubuntu_name>` can be `Noble` (24.04).
 
 Now, the executable files should be in the `./output` directory.
 
