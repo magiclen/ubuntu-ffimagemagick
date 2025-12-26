@@ -1,4 +1,4 @@
-ARG imagemagick_ver=7.1.2-7
+ARG imagemagick_ver=7.1.2-11
 ARG libfpx_ver=9b547af9651c7147ecebbda567543cc802c8135c
 ARG libjxl_ver=0.11.1
 ARG libultrahdr_ver=1.4.0
