@@ -1,6 +1,6 @@
-ARG imagemagick_ver=7.1.2-11
-ARG libfpx_ver=9b547af9651c7147ecebbda567543cc802c8135c
-ARG libjxl_ver=0.11.1
+ARG imagemagick_ver=7.1.2-15
+ARG libfpx_ver=bfc4d4aad0051212ca3416b750734f9f7c6c6268
+ARG libjxl_ver=0.11.2
 ARG libultrahdr_ver=1.4.0
 
 FROM ubuntu:24.04 AS builder
