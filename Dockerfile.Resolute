@@ -1,6 +1,7 @@
 ARG imagemagick_ver=7.1.2-15
 ARG libfpx_ver=bfc4d4aad0051212ca3416b750734f9f7c6c6268
 ARG libultrahdr_ver=1.4.0
+ARG autotrace_ver=2d0b8cce456681ef5baf13f7264980330d1e443b
 
 FROM ubuntu:26.04 AS builder
 
@@ -105,6 +106,21 @@ cd libultrahdr-${libultrahdr_ver}/build && \
 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="/imagemagick_build" -DBUILD_SHARED_LIBS=off -DCMAKE_CXX_FLAGS="-include cstdint" .. && \
 make -j$(nproc) && make install
 
+# -----AUTOTRACE-----
+
+# fetch & compile & install autotrace for --with-autotrace=yes
+RUN apt install -y \
+libpstoedit-dev \
+intltool \
+autopoint
+ARG autotrace_ver
+RUN cd /imagemagick_build && \
+curl -fL https://github.com/autotrace/autotrace/archive/${autotrace_ver}.tar.gz -o autotrace.tar.gz && tar xzf autotrace.tar.gz && \
+cd autotrace-${autotrace_ver} && \
+./autogen.sh && \
+./configure --prefix="/imagemagick_build" --disable-shared --with-pic --without-magick && \
+make -j$(nproc) && make install
+
 # -----ImageMagick-----
 
 ARG imagemagick_ver
@@ -114,13 +130,13 @@ WORKDIR /workspace/ImageMagick-${imagemagick_ver}
 
 RUN ls /imagemagick_build/lib
 
-RUN CPPFLAGS="-I/imagemagick_build/include" LDFLAGS="-L/imagemagick_build/lib" LIBS="-lbrotlicommon" PKG_CONFIG_PATH="/imagemagick_build/lib/pkgconfig" ./configure \
+RUN CPPFLAGS="-I/imagemagick_build/include" LDFLAGS="-L/imagemagick_build/lib" LIBS="-lpstoedit" PKG_CONFIG_PATH="/imagemagick_build/lib/pkgconfig" ./configure \
 --prefix="/imagemagick_build" \
 --disable-shared \
 --enable-zero-configuration \
 --enable-hdri --with-quantum-depth=32 --enable-64bit-channel-masks \
 --with-jemalloc \
-# --with-autotrace \  # it causes issues
+--with-autotrace \
 # --with-dps \        # this is too old to be found
 --with-fftw \
 # --with-ffif \       # this is too old to be found
@@ -162,13 +178,14 @@ libraw23t64 \
 librsvg2-2 \
 libwebp7 libwebpmux3 libwebpdemux2 \
 libwmflite-0.2-7 \
-libzip5
+libzip5 \
+libpstoedit0t64
 
 RUN useradd -M -U user && passwd -l user
 
 WORKDIR /workspace
 
-COPY --from=builder /imagemagick_build/bin/magick ./
+COPY --from=builder /imagemagick_build/bin/magick /imagemagick_build/bin/autotrace ./
 
 RUN chown user:user /workspace
 	 
@@ -178,4 +195,8 @@ RUN ldd magick
 
 RUN ./magick --help
 
-CMD ["cp", "magick", "/output"]
+RUN ldd autotrace
+
+RUN ./autotrace --help
+
+CMD ["cp", "magick", "autotrace", "/output"]
