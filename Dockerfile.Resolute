@@ -1,0 +1,181 @@
+ARG imagemagick_ver=7.1.2-15
+ARG libfpx_ver=bfc4d4aad0051212ca3416b750734f9f7c6c6268
+ARG libultrahdr_ver=1.4.0
+
+FROM ubuntu:26.04 AS builder
+
+RUN apt update -y
+
+RUN apt install -y curl build-essential automake libtool pkg-config cmake git
+
+RUN mkdir imagemagick_build
+
+WORKDIR /workspace
+
+# -----MALLOC-----
+
+# libjemalloc-dev for --with-jemalloc=yes
+RUN apt install -y libjemalloc-dev
+
+# -----LIBRARY-----
+
+# libbz2-dev for NOT --with-bzlib=no
+# libdjvulibre-dev for NOT --with-djvu=no
+# libfftw3-dev for --with-fftw=yes
+# libfontconfig1-dev for NOT --with-fontconfig=no
+# libfreetype-dev for NOT --with-freetype=no
+# libgs-dev for --with-gslib=yes
+# libgraphviz-dev for NOT --with-gvc=no
+# libheif-dev for NOT --with-heic=no
+# libjbig-dev for NOT --with-jbig=no
+# libjpeg-dev for NOT --with-jpeg=no
+# libjxl-dev for NOT --with-jxl=no
+# libdmr-dev for NOT --with-dmr=no
+# liblcms2-dev for NOT --with-lcms=no
+# liblqr-1-0-dev for NOT --with-lqr=no
+# liblzma-dev for NOT --with-lzma=no
+# libopenexr-dev for NOT --with-openexr=no
+# libopenjp2-7-dev for NOT --with-openjp2=no
+# libpango1.0-dev for NOT --with-pango=no
+# libperl-dev for --with-perl=yes
+# libpng-dev for NOT --with-png=no
+# libraqm-dev for NOT --with-raqm=no
+# libraw-dev for NOT --with-raw=no
+# librsvg2-dev for --with-rsvg=yes
+# libtiff-dev for NOT --with-tiff=no
+# libwebp-dev for NOT --with-webp=no
+# libwmf-dev for --with-wmf=yes
+# libxml2-dev for NOT --with-xml=no
+# libzip-dev for NOT --with-zip=no
+# zlib1g-dev for NOT --with-zlib=no
+# libzstd-dev for NOT --with-zstd=no
+RUN apt install -y \
+libbz2-dev \
+libdjvulibre-dev \
+libfftw3-dev \
+libfontconfig1-dev \
+libfreetype-dev \
+libgs-dev \
+libgraphviz-dev \
+libheif-dev \
+libjbig-dev \
+libjpeg-dev \
+libjxl-dev \
+libdmr-dev \
+liblcms2-dev \
+liblqr-1-0-dev \
+liblzma-dev \
+libopenexr-dev \
+libopenjp2-7-dev \
+libpango1.0-dev \
+# libperl-dev \        # it causes issues
+libpng-dev \
+libraqm-dev \
+libraw-dev \
+librsvg2-dev \
+libtiff-dev \
+libwebp-dev \
+libwmf-dev \
+libxml2-dev \
+libzip-dev \
+zlib1g-dev \
+libzstd-dev
+
+# -----PROGRAM-----
+
+RUN apt install -y \
+ghostscript
+
+# -----COMPILATION - LIBRARY-----
+
+# fetch & compile & install libfpx for --with-fpx=yes
+ARG libfpx_ver
+RUN cd /imagemagick_build && \
+curl -fL https://github.com/ImageMagick/libfpx/archive/${libfpx_ver}.tar.gz -o libfpx.tar.gz && tar xzf libfpx.tar.gz && \
+cd libfpx-${libfpx_ver} && \
+./configure --prefix="/imagemagick_build" --disable-shared && \
+make -j$(nproc) && make install
+
+# fetch & compile & install libultrahdr for --with-uhdr=yes
+ARG libultrahdr_ver
+RUN cd /imagemagick_build && \
+curl -fL https://github.com/google/libultrahdr/archive/refs/tags/v${libultrahdr_ver}.tar.gz -o libultrahdr.tar.gz && tar xzf libultrahdr.tar.gz && \
+mkdir -p libultrahdr-${libultrahdr_ver}/build && \
+cd libultrahdr-${libultrahdr_ver}/build && \
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="/imagemagick_build" -DBUILD_SHARED_LIBS=off -DCMAKE_CXX_FLAGS="-include cstdint" .. && \
+make -j$(nproc) && make install
+
+# -----ImageMagick-----
+
+ARG imagemagick_ver
+RUN curl -fL https://github.com/ImageMagick/ImageMagick/archive/refs/tags/${imagemagick_ver}.tar.gz -o imagemagick.tar.gz && tar xzf imagemagick.tar.gz
+
+WORKDIR /workspace/ImageMagick-${imagemagick_ver}
+
+RUN ls /imagemagick_build/lib
+
+RUN CPPFLAGS="-I/imagemagick_build/include" LDFLAGS="-L/imagemagick_build/lib" LIBS="-lbrotlicommon" PKG_CONFIG_PATH="/imagemagick_build/lib/pkgconfig" ./configure \
+--prefix="/imagemagick_build" \
+--disable-shared \
+--enable-zero-configuration \
+--enable-hdri --with-quantum-depth=32 --enable-64bit-channel-masks \
+--with-jemalloc \
+# --with-autotrace \  # it causes issues
+# --with-dps \        # this is too old to be found
+--with-fftw \
+# --with-ffif \       # this is too old to be found
+--with-fpx \
+--with-gslib \
+# --with-perl \       # it causes issues
+--with-rsvg \
+--with-uhdr \
+--with-wmf
+
+RUN make -j$(nproc)
+
+RUN make install
+
+RUN /imagemagick_build/bin/magick --help
+
+
+
+# ----- Runtime Environment -----
+
+FROM ubuntu:26.04
+
+RUN apt update -y
+
+# If you want to run ImageMagick's executable file on other Ubuntu-26.04-based systems, use the following command to install the required packages.
+RUN apt install -y \
+ghostscript \
+libjemalloc2 \
+libdjvulibre21 \
+libfftw3-bin \
+libgvc7 \
+libheif1 \
+liblcms2-2 \
+liblqr-1-0 \
+libopenexr-3-1-30 \
+libpango-1.0-0 \
+libraqm0 \
+libraw23t64 \
+librsvg2-2 \
+libwebp7 libwebpmux3 libwebpdemux2 \
+libwmflite-0.2-7 \
+libzip5
+
+RUN useradd -M -U user && passwd -l user
+
+WORKDIR /workspace
+
+COPY --from=builder /imagemagick_build/bin/magick ./
+
+RUN chown user:user /workspace
+	 
+USER user
+
+RUN ldd magick
+
+RUN ./magick --help
+
+CMD ["cp", "magick", "/output"]
