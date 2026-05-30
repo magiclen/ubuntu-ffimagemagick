@@ -1,4 +1,4 @@
-ARG imagemagick_ver=7.1.2-15
+ARG imagemagick_ver=7.1.2-24
 ARG libfpx_ver=bfc4d4aad0051212ca3416b750734f9f7c6c6268
 ARG libultrahdr_ver=1.4.0
 ARG autotrace_ver=2d0b8cce456681ef5baf13f7264980330d1e443b
