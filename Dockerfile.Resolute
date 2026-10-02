@@ -1,7 +1,7 @@
-ARG imagemagick_ver=7.1.2-24
-ARG libfpx_ver=bfc4d4aad0051212ca3416b750734f9f7c6c6268
-ARG libultrahdr_ver=1.4.0
-ARG autotrace_ver=2d0b8cce456681ef5baf13f7264980330d1e443b
+ARG imagemagick_ver=7.1.2-32
+ARG libfpx_ver=bb28e42245701ef5473ac086e06d505491ad3d8a
+ARG libultrahdr_ver=2.0.2
+ARG autotrace_ver=0ea5ccc1441b0bb52f935ca38381069de1990dbc
 
 FROM ubuntu:26.04 AS builder
 
