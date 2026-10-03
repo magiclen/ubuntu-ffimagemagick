@@ -2,21 +2,20 @@ ARG imagemagick_ver=7.1.2-32
 ARG libfpx_ver=bb28e42245701ef5473ac086e06d505491ad3d8a
 ARG libultrahdr_ver=2.0.2
 ARG autotrace_ver=0ea5ccc1441b0bb52f935ca38381069de1990dbc
+ARG imagemagick_delegates="autotrace bzlib cairo djvu fftw fontconfig fpx freetype gslib gvc heic jbig jng jp2 jpeg jxl lcms lqr lzma openexr pangocairo png ps raqm raw rsvg tiff uhdr webp wmf x xml zip zlib zstd"
 
 FROM ubuntu:26.04 AS builder
 
-RUN apt update -y
+RUN apt-get update && apt-get install -y curl build-essential automake libtool pkg-config cmake git
 
-RUN apt install -y curl build-essential automake libtool pkg-config cmake git
-
-RUN mkdir imagemagick_build
+RUN mkdir /imagemagick_build
 
 WORKDIR /workspace
 
 # -----MALLOC-----
 
 # libjemalloc-dev for --with-jemalloc=yes
-RUN apt install -y libjemalloc-dev
+RUN apt-get update && apt-get install -y libjemalloc-dev
 
 # -----LIBRARY-----
 
@@ -50,7 +49,7 @@ RUN apt install -y libjemalloc-dev
 # libzip-dev for NOT --with-zip=no
 # zlib1g-dev for NOT --with-zlib=no
 # libzstd-dev for NOT --with-zstd=no
-RUN apt install -y \
+RUN apt-get update && apt-get install -y \
 libbz2-dev \
 libdjvulibre-dev \
 libfftw3-dev \
@@ -83,7 +82,7 @@ libzstd-dev
 
 # -----PROGRAM-----
 
-RUN apt install -y \
+RUN apt-get update && apt-get install -y \
 ghostscript
 
 # -----COMPILATION - LIBRARY-----
@@ -102,13 +101,13 @@ RUN cd /imagemagick_build && \
 curl -fL https://github.com/google/libultrahdr/archive/refs/tags/v${libultrahdr_ver}.tar.gz -o libultrahdr.tar.gz && tar xzf libultrahdr.tar.gz && \
 mkdir -p libultrahdr-${libultrahdr_ver}/build && \
 cd libultrahdr-${libultrahdr_ver}/build && \
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="/imagemagick_build" -DBUILD_SHARED_LIBS=off -DCMAKE_CXX_FLAGS="-include cstdint" .. && \
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="/imagemagick_build" -DBUILD_SHARED_LIBS=off -DUHDR_BUILD_EXAMPLES=OFF -DCMAKE_CXX_FLAGS="-include cstdint" .. && \
 make -j$(nproc) && make install
 
 # -----AUTOTRACE-----
 
 # fetch & compile & install autotrace for --with-autotrace=yes
-RUN apt install -y \
+RUN apt-get update && apt-get install -y \
 libpstoedit-dev \
 intltool \
 autopoint
@@ -118,7 +117,7 @@ curl -fL https://github.com/autotrace/autotrace/archive/${autotrace_ver}.tar.gz 
 cd autotrace-${autotrace_ver} && \
 ./autogen.sh && \
 ./configure --prefix="/imagemagick_build" --disable-shared --with-pic --without-magick && \
-make -j$(nproc) && make install
+make -j$(nproc) && make install-strip
 
 # -----ImageMagick-----
 
@@ -148,9 +147,9 @@ RUN CPPFLAGS="-I/imagemagick_build/include" LDFLAGS="-L/imagemagick_build/lib" L
 
 RUN make -j$(nproc)
 
-RUN make install
+RUN make install-strip
 
-RUN /imagemagick_build/bin/magick --help
+RUN /imagemagick_build/bin/magick -version
 
 
 
@@ -158,10 +157,8 @@ RUN /imagemagick_build/bin/magick --help
 
 FROM ubuntu:26.04
 
-RUN apt update -y
-
 # If you want to run ImageMagick's executable file on other Ubuntu-26.04-based systems, use the following command to install the required packages.
-RUN apt install -y \
+RUN apt-get update && apt-get install -y \
 ghostscript \
 libjemalloc2 \
 libdjvulibre21 \
@@ -188,12 +185,16 @@ WORKDIR /workspace
 COPY --from=builder /imagemagick_build/bin/magick /imagemagick_build/bin/autotrace ./
 
 RUN chown user:user /workspace
-	 
+
 USER user
 
 RUN ldd magick
 
-RUN ./magick --help
+ARG imagemagick_delegates
+RUN ./magick -version && \
+if ! ldd magick | grep -q libjemalloc; then echo "missing: jemalloc"; exit 1; fi && \
+delegates=" $(./magick -version | sed -n 's/^Delegates (built-in)://p') " && \
+for d in ${imagemagick_delegates}; do case "$delegates" in *" $d "*) ;; *) echo "missing delegate: $d"; exit 1;; esac; done
 
 RUN ldd autotrace
 
