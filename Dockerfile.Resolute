@@ -6,7 +6,9 @@ ARG imagemagick_delegates="autotrace bzlib cairo djvu fftw fontconfig fpx freety
 
 FROM ubuntu:26.04 AS builder
 
-RUN apt-get update && apt-get install -y curl build-essential automake libtool pkg-config cmake git
+RUN apt-get update
+
+RUN apt-get install -y curl build-essential automake libtool pkg-config cmake git
 
 RUN mkdir /imagemagick_build
 
