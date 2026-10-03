@@ -31,7 +31,7 @@ RUN apt install -y libjemalloc-dev
 # libheif-dev for NOT --with-heic=no
 # libjbig-dev for NOT --with-jbig=no
 # libjpeg-dev for NOT --with-jpeg=no
-# libdmr-dev for NOT --with-dmr=no
+# --with-dmr requires MagickCache (https://github.com/ImageMagick/MagickCache), which is not provided by Ubuntu
 # liblcms2-dev for NOT --with-lcms=no
 # liblqr-1-0-dev for NOT --with-lqr=no
 # liblzma-dev for NOT --with-lzma=no
@@ -61,7 +61,6 @@ libgraphviz-dev \
 libheif-dev \
 libjbig-dev \
 libjpeg-dev \
-libdmr-dev \
 liblcms2-dev \
 liblqr-1-0-dev \
 liblzma-dev \
@@ -149,7 +148,7 @@ RUN CPPFLAGS="-I/imagemagick_build/include" LDFLAGS="-L/imagemagick_build/lib" L
 --with-autotrace \
 # --with-dps \        # this is too old to be found
 --with-fftw \
-# --with-ffif \       # this is too old to be found
+# --with-flif \       # this is too old to be found
 --with-fpx \
 --with-gslib \
 # --with-perl \       # it causes issues
@@ -176,7 +175,7 @@ RUN apt install -y \
 ghostscript \
 libjemalloc2 \
 libdjvulibre21 \
-libfftw3-bin \
+libfftw3-double3 \
 libgvc6 \
 libheif1 \
 liblcms2-2 \

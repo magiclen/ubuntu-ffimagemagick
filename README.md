@@ -25,7 +25,7 @@ chmod 777 output
 docker run -v "$(pwd)/output":/output --name imagemagick-build imagemagick-build
 ```
 
-`<ubuntu_name>` can be `Noble` (24.04).
+`<ubuntu_name>` can be `Noble` (24.04) or `Resolute` (26.04).
 
 Now, the executable files should be in the `./output` directory.
 
