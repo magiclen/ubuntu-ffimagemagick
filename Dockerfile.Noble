@@ -138,8 +138,6 @@ RUN curl -fL https://github.com/ImageMagick/ImageMagick/archive/refs/tags/${imag
 
 WORKDIR /workspace/ImageMagick-${imagemagick_ver}
 
-RUN ls /imagemagick_build/lib
-
 RUN CPPFLAGS="-I/imagemagick_build/include" LDFLAGS="-L/imagemagick_build/lib" LIBS="-lbrotlicommon -lpstoedit" PKG_CONFIG_PATH="/imagemagick_build/lib/pkgconfig" ./configure \
 --prefix="/imagemagick_build" \
 --disable-shared \
@@ -155,14 +153,14 @@ RUN CPPFLAGS="-I/imagemagick_build/include" LDFLAGS="-L/imagemagick_build/lib" L
 # --with-perl \       # it causes issues
 --with-rsvg \
 --with-uhdr \
---with-wmf
+--with-wmf \
+|| (tail -n 50 config.log && exit 1)
 
 RUN make -j$(nproc)
 
 RUN make install-strip
 
 RUN /imagemagick_build/bin/magick -version
-
 
 
 # ----- Runtime Environment -----

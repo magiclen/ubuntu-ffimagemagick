@@ -32,6 +32,7 @@ Now, the executable files should be in the `./output` directory.
 
 ```bash
 docker image rm imagemagick-build && docker image prune
+docker builder prune
 ```
 
 ## Run ImageMagick's Executable File
